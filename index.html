@@ -277,6 +277,35 @@ body {
 .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
 /* ── AUTH ── */
+/* ── SYNC BAR ── */
+.sync-bar {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 6px 16px; display: flex; align-items: center; gap: 7px;
+  z-index: 90; font-size: 11px; color: var(--text-muted);
+  transition: opacity 0.3s;
+}
+.sync-bar.syncing { color: var(--accent); }
+.sync-bar.error   { color: #dc2626; }
+.sync-bar.ok      { color: #059669; }
+.sync-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border);
+}
+.sync-bar.syncing .sync-dot {
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+.sync-bar.ok .sync-dot    { background: #059669; }
+.sync-bar.error .sync-dot { background: #dc2626; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+/* Push screen content below sync bar */
+.screen { padding-top: 36px; }
+
 .auth-wall {
   position: fixed; inset: 0; background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -325,6 +354,12 @@ body {
   </div>
 </div>
 
+<!-- SYNC BAR -->
+<div class="sync-bar" id="sync-bar">
+  <div class="sync-dot"></div>
+  <span id="sync-label">Waiting for sync…</span>
+</div>
+
 <!-- OVERLAYS -->
 <div class="toast" id="toast"></div>
 <div class="levelup-overlay" id="luOverlay">
@@ -342,7 +377,6 @@ body {
     <div>
       <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px">RESET</div>
       <div style="font-size:12px;color:var(--text-muted)" id="today-date"></div>
-      <div style="font-size:10px;color:var(--accent);min-height:13px;margin-top:1px" id="sync-status"></div>
     </div>
     <div class="shields-row" id="shields-display"></div>
   </div>
@@ -644,49 +678,95 @@ function scheduleGistPush() {
 
 async function pushToGist() {
   const pat = getGistPAT();
-  if (!pat || isSyncing) return;
+  if (!pat) { showSyncStatus('nopat'); return; }
+  if (isSyncing) return;
+  showSyncStatus('syncing');
   try {
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       method: 'PATCH',
       headers: { 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(S) } } })
     });
-    showSyncStatus('✓ Synced');
-  } catch(e) { showSyncStatus('⚠ Sync failed'); }
+    if (!res.ok) throw new Error();
+    showSyncStatus('ok');
+  } catch(e) { showSyncStatus('error'); }
 }
 
 async function pullFromGist(silent) {
   const pat = getGistPAT();
-  if (!pat) return;
+  if (!pat) { showSyncStatus('nopat'); return; }
+  if (isSyncing) return;
   isSyncing = true;
+  if (!silent) showSyncStatus('syncing');
   try {
     const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       headers: { 'Authorization': `token ${pat}` }
     });
-    if (!res.ok) return;
+    if (!res.ok) throw new Error();
     const data = await res.json();
     const raw = data.files?.[GIST_FILE]?.content;
-    if (!raw) return;
+    if (!raw) throw new Error();
     const remote = JSON.parse(raw);
-    // Take whichever state is newer
     if ((remote._syncedAt || 0) > (S._syncedAt || 0)) {
       S = Object.assign(defaultState(), remote);
       localStorage.setItem('reset_v2', JSON.stringify(S));
       renderToday();
-      if (!silent) showSyncStatus('↓ Updated from cloud');
+      showSyncStatus('updated');
     } else {
-      if (!silent) showSyncStatus('✓ Up to date');
+      showSyncStatus('uptodate');
     }
-  } catch(e) {}
+  } catch(e) { showSyncStatus('error'); }
   finally { isSyncing = false; }
 }
 
-function showSyncStatus(msg) {
-  const el = document.getElementById('sync-status');
-  if (!el) return;
-  el.textContent = msg;
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+let lastSyncedAt = 0;
+let syncTickTimer = null;
+
+function setSyncBar(state, msg) {
+  const bar   = document.getElementById('sync-bar');
+  const label = document.getElementById('sync-label');
+  if (!bar || !label) return;
+  bar.className = 'sync-bar ' + state;
+  label.textContent = msg;
+}
+
+function showSyncStatus(type) {
+  // type: 'syncing' | 'ok' | 'error' | 'nopat'
+  clearTimeout(syncTickTimer);
+  if (type === 'syncing') {
+    setSyncBar('syncing', 'Syncing…');
+  } else if (type === 'ok') {
+    lastSyncedAt = Date.now();
+    setSyncBar('ok', 'Synced just now');
+    startSyncTick();
+  } else if (type === 'uptodate') {
+    lastSyncedAt = Date.now();
+    setSyncBar('ok', 'Up to date');
+    startSyncTick();
+  } else if (type === 'updated') {
+    lastSyncedAt = Date.now();
+    setSyncBar('ok', '↓ Updated from cloud');
+    startSyncTick();
+  } else if (type === 'error') {
+    setSyncBar('error', '⚠ Sync failed — check connection');
+  } else if (type === 'nopat') {
+    setSyncBar('', 'Add GitHub token in Settings to enable sync');
+  }
+}
+
+function startSyncTick() {
+  clearTimeout(syncTickTimer);
+  syncTickTimer = setTimeout(function tick() {
+    if (!lastSyncedAt) return;
+    const secs = Math.round((Date.now() - lastSyncedAt) / 1000);
+    let txt;
+    if (secs < 10)       txt = 'Synced just now';
+    else if (secs < 60)  txt = `Synced ${secs}s ago`;
+    else if (secs < 120) txt = 'Synced 1 min ago';
+    else                 txt = `Synced ${Math.round(secs/60)} min ago`;
+    setSyncBar('ok', txt);
+    syncTickTimer = setTimeout(tick, secs < 60 ? 5000 : 30000);
+  }, 5000);
 }
 
 // Pull on tab focus
