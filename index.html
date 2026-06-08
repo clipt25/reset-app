@@ -39,7 +39,8 @@ body {
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: 72px;
+  /* nav height (58px) + safe area + extra breathing room */
+  padding-bottom: calc(58px + env(safe-area-inset-bottom, 16px) + 16px);
 }
 
 /* ── NAV ── */
@@ -47,14 +48,21 @@ body {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px;
   background: var(--surface); border-top: 1px solid var(--border);
-  display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0);
+  display: flex; z-index: 100;
+  /* Pad buttons above home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 8px);
 }
 .nav-btn {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 4px; border: none; background: none; cursor: pointer;
-  color: var(--text-muted); font-size: 10px; font-family: inherit; transition: color 0.15s;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 4px 6px; border: none; background: none; cursor: pointer;
+  color: var(--text-muted); font-size: 10px; font-family: inherit;
+  transition: color 0.15s; position: relative;
 }
 .nav-btn.active { color: var(--accent); }
+.nav-btn.active::before {
+  content: ''; position: absolute; top: 0; left: 25%; right: 25%;
+  height: 2px; background: var(--accent); border-radius: 0 0 2px 2px;
+}
 .nav-btn .ico { font-size: 22px; }
 
 /* ── SCREENS ── */
@@ -279,32 +287,31 @@ body {
 /* ── AUTH ── */
 /* ── SYNC BAR ── */
 .sync-bar {
-  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  position: fixed; top: env(safe-area-inset-top, 0); left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px;
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 6px 16px; display: flex; align-items: center; gap: 7px;
+  background: rgba(248,247,244,0.92); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: 5px 16px; display: flex; align-items: center; gap: 7px;
   z-index: 90; font-size: 11px; color: var(--text-muted);
-  transition: opacity 0.3s;
+  transition: opacity 0.4s, transform 0.3s;
 }
+.sync-bar.hidden  { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(-100%); }
 .sync-bar.syncing { color: var(--accent); }
 .sync-bar.error   { color: #dc2626; }
 .sync-bar.ok      { color: #059669; }
 .sync-dot {
   width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  background: var(--border);
+  background: var(--border); transition: background 0.3s;
 }
-.sync-bar.syncing .sync-dot {
-  background: var(--accent);
-  animation: pulse 1s ease-in-out infinite;
-}
-.sync-bar.ok .sync-dot    { background: #059669; }
-.sync-bar.error .sync-dot { background: #dc2626; }
+.sync-bar.syncing .sync-dot { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.sync-bar.ok .sync-dot      { background: #059669; }
+.sync-bar.error .sync-dot   { background: #dc2626; }
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.75); }
 }
-/* Push screen content below sync bar */
-.screen { padding-top: 36px; }
+/* Push screen content below sync bar when visible */
+body.has-syncbar .screen { padding-top: 32px; }
 
 .auth-wall {
   position: fixed; inset: 0; background: var(--bg);
@@ -726,12 +733,17 @@ function setSyncBar(state, msg) {
   const bar   = document.getElementById('sync-bar');
   const label = document.getElementById('sync-label');
   if (!bar || !label) return;
-  bar.className = 'sync-bar ' + state;
+  if (state === 'hidden') {
+    bar.classList.add('hidden');
+    document.body.classList.remove('has-syncbar');
+  } else {
+    bar.className = 'sync-bar ' + state;
+    document.body.classList.add('has-syncbar');
+  }
   label.textContent = msg;
 }
 
 function showSyncStatus(type) {
-  // type: 'syncing' | 'ok' | 'error' | 'nopat'
   clearTimeout(syncTickTimer);
   if (type === 'syncing') {
     setSyncBar('syncing', 'Syncing…');
@@ -750,7 +762,7 @@ function showSyncStatus(type) {
   } else if (type === 'error') {
     setSyncBar('error', '⚠ Sync failed — check connection');
   } else if (type === 'nopat') {
-    setSyncBar('', 'Add GitHub token in Settings to enable sync');
+    setSyncBar('hidden', '');   // hide bar entirely when no PAT configured
   }
 }
 
