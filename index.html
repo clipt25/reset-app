@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESET</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RESET">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --border: #e5e0d6;
+  --text: #1a1827;
+  --text-muted: #6e6b7a;
+  --accent: #4f46e5;
+  --accent-soft: #eef2ff;
+  --accent-mid: #a5b4fc;
+  --radius: 14px;
+  --radius-sm: 9px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 72px;
+}
+
+/* ── NAV ── */
+.nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; border: none; background: none; cursor: pointer;
+  color: var(--text-muted); font-size: 10px; font-family: inherit; transition: color 0.15s;
+}
+.nav-btn.active { color: var(--accent); }
+.nav-btn .ico { font-size: 22px; }
+
+/* ── SCREENS ── */
+.screen { display: none; padding: 20px 16px 8px; }
+.screen.active { display: block; }
+.page-header { margin-bottom: 16px; }
+.page-title { font-size: 20px; font-weight: 700; }
+.page-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── HUD ── */
+.hud {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+}
+.hud-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.level-badge { display: flex; align-items: center; gap: 10px; }
+.level-circle {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--accent); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 17px; flex-shrink: 0;
+}
+.level-name { font-weight: 600; font-size: 15px; }
+.level-lbl { font-size: 11px; color: var(--text-muted); }
+.streak-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--accent-soft); border-radius: 20px; padding: 8px 12px;
+}
+.streak-num { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
+.streak-meta { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+.xp-track { height: 7px; background: #e0ddf5; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+.xp-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.5s ease; }
+.xp-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+.status-line {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-muted); text-align: center; font-style: italic;
+}
+
+/* ── SHIELDS ── */
+.shields-row { display: flex; align-items: center; gap: 3px; }
+.shield-ico { font-size: 18px; transition: opacity 0.2s; }
+.shield-ico.empty { opacity: 0.2; }
+
+/* ── GP NOTE ── */
+.gp-note {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 12px; color: #92400e; line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+/* ── COMPLETE BANNER ── */
+.day-complete {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white; border-radius: var(--radius); padding: 14px;
+  margin-bottom: 14px; text-align: center; font-size: 14px; font-weight: 500;
+  display: none;
+}
+
+/* ── CHECK-IN ── */
+.checkin-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 14px;
+}
+.checkin-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+.rating-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.rating-btn {
+  flex: 1; aspect-ratio: 1; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface);
+  cursor: pointer; font-size: 20px; display: flex; align-items: center;
+  justify-content: center; transition: all 0.15s;
+}
+.rating-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
+.note-input {
+  width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text);
+  background: var(--bg); resize: none; outline: none;
+}
+.note-input:focus { border-color: var(--accent); }
+
+/* ── QUESTS ── */
+.pillar-group { margin-bottom: 16px; }
+.pillar-hdr {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 7px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-muted);
+}
+.pillar-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.quest-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  display: flex; align-items: center; gap: 11px; cursor: pointer;
+  transition: transform 0.1s, opacity 0.2s; margin-bottom: 5px;
+}
+.quest-card:active { transform: scale(0.98); }
+.quest-card.done { opacity: 0.55; background: #fafafa; }
+.quest-chk {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; transition: all 0.2s; color: white;
+}
+.quest-info { flex: 1; min-width: 0; }
+.quest-title { font-size: 14px; font-weight: 500; line-height: 1.3; }
+.quest-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.quest-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.quest-xp { font-size: 12px; font-weight: 700; color: var(--accent); }
+.core-badge {
+  font-size: 9px; background: var(--accent-soft); color: var(--accent);
+  padding: 2px 5px; border-radius: 4px; font-weight: 700; letter-spacing: 0.3px;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 84px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: #1a1827; color: white; padding: 9px 18px;
+  border-radius: 20px; font-size: 13px; font-weight: 500;
+  opacity: 0; pointer-events: none; transition: all 0.25s ease; z-index: 200;
+  white-space: nowrap; max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── LEVEL UP ── */
+.levelup-overlay {
+  position: fixed; inset: 0;
+  background: rgba(79, 70, 229, 0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.levelup-overlay.show { opacity: 1; pointer-events: all; }
+.levelup-box { text-align: center; color: white; padding: 40px 32px; }
+.levelup-star { font-size: 72px; margin-bottom: 16px; animation: spin 0.6s ease; }
+@keyframes spin { from { transform: rotate(-20deg) scale(0.5); } to { transform: rotate(0) scale(1); } }
+.levelup-h { font-size: 30px; font-weight: 700; margin-bottom: 6px; }
+.levelup-s { font-size: 15px; opacity: 0.85; margin-bottom: 32px; line-height: 1.5; }
+.levelup-btn {
+  background: white; color: var(--accent); border: none;
+  padding: 14px 36px; border-radius: 28px; font-size: 16px;
+  font-weight: 600; cursor: pointer;
+}
+
+/* ── TRENDS ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+}
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.heatmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.heatmap-cell { aspect-ratio: 1; border-radius: 4px; }
+.hm-full { background: var(--accent); }
+.hm-partial { background: var(--accent-mid); }
+.hm-empty { background: #e0ddf5; }
+.hm-today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.stat-box {
+  background: var(--accent-soft); border-radius: var(--radius-sm);
+  padding: 12px 8px; text-align: center;
+}
+.stat-num { font-size: 24px; font-weight: 700; color: var(--accent); }
+.stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.bar-lbl { font-size: 12px; width: 76px; color: var(--text-muted); flex-shrink: 0; line-height: 1.3; }
+.bar-track { flex: 1; height: 10px; background: #e0ddf5; border-radius: 5px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+.bar-pct { font-size: 12px; font-weight: 600; width: 34px; text-align: right; }
+.rating-chip {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 11px; color: var(--text-muted); margin: 4px;
+}
+.care-note {
+  background: #f0fdf4; border: 1px solid #86efac; border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 12px; color: #166534; line-height: 1.5; margin-top: 4px;
+}
+
+/* ── CODEX ── */
+.codex-pillar { margin-bottom: 18px; }
+.codex-p-hdr {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-radius: var(--radius-sm); margin-bottom: 6px;
+}
+.codex-p-name { font-weight: 700; font-size: 15px; }
+.codex-q {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  margin-bottom: 5px; margin-left: 10px;
+}
+.codex-q-title {
+  font-weight: 600; font-size: 14px; margin-bottom: 5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.codex-q-why { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* ── SETTINGS ── */
+.settings-section { margin-bottom: 20px; }
+.settings-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+.settings-row {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 5px;
+}
+.settings-row-label { font-size: 14px; }
+.settings-row-value { font-size: 14px; font-weight: 600; color: var(--accent); }
+.settings-input {
+  border: none; outline: none; font-family: inherit; font-size: 14px;
+  font-weight: 600; color: var(--accent); background: transparent;
+  text-align: right; width: 90px; cursor: pointer;
+}
+.btn {
+  display: block; width: 100%; padding: 12px; border-radius: var(--radius-sm);
+  border: none; font-size: 14px; font-weight: 600; cursor: pointer;
+  margin-bottom: 7px; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-outline { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+</style>
+</head>
+<body>
+
+<!-- OVERLAYS -->
+<div class="toast" id="toast"></div>
+<div class="levelup-overlay" id="luOverlay">
+  <div class="levelup-box">
+    <div class="levelup-star">⭐</div>
+    <div class="levelup-h" id="luTitle">Level Up!</div>
+    <div class="levelup-s" id="luSub">You reached a new level.</div>
+    <button class="levelup-btn" onclick="dismissLU()">Keep going →</button>
+  </div>
+</div>
+
+<!-- TODAY -->
+<div class="screen active" id="screen-today">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
+    <div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px">RESET</div>
+      <div style="font-size:12px;color:var(--text-muted)" id="today-date"></div>
+    </div>
+    <div class="shields-row" id="shields-display"></div>
+  </div>
+
+  <div class="hud" id="hud"></div>
+
+  <div class="gp-note">💙 A support, not a substitute for medical care — book the GP.</div>
+
+  <div class="day-complete" id="day-complete-banner">
+    🌟 Day complete. Nervous system thanks you.
+  </div>
+
+  <div class="checkin-card">
+    <div class="checkin-lbl">Morning readiness</div>
+    <div class="rating-row">
+      <button class="rating-btn" data-v="1" onclick="setRating(1)">😴</button>
+      <button class="rating-btn" data-v="2" onclick="setRating(2)">😕</button>
+      <button class="rating-btn" data-v="3" onclick="setRating(3)">😐</button>
+      <button class="rating-btn" data-v="4" onclick="setRating(4)">🙂</button>
+      <button class="rating-btn" data-v="5" onclick="setRating(5)">✨</button>
+    </div>
+    <textarea class="note-input" id="note-input" rows="2"
+      placeholder="One-line note (optional)…" oninput="saveNote()"></textarea>
+  </div>
+
+  <div id="quests-container"></div>
+</div>
+
+<!-- TRENDS -->
+<div class="screen" id="screen-trends">
+  <div class="page-header">
+    <div class="page-title">Trends</div>
+    <div class="page-sub">Your data for the GP appointment</div>
+  </div>
+  <div id="trends-content"></div>
+</div>
+
+<!-- CODEX -->
+<div class="screen" id="screen-codex">
+  <div class="page-header">
+    <div class="page-title">The Why</div>
+    <div class="page-sub">Each habit — the symptom it targets and the mechanism behind it</div>
+  </div>
+  <div id="codex-content"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="screen-settings">
+  <div class="page-header">
+    <div class="page-title">Settings</div>
+    <div class="page-sub">Configure your system</div>
+  </div>
+  <div id="settings-content"></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-today" onclick="showScreen('today')">
+    <span class="ico">🌅</span>Today
+  </button>
+  <button class="nav-btn" id="nav-trends" onclick="showScreen('trends')">
+    <span class="ico">📊</span>Trends
+  </button>
+  <button class="nav-btn" id="nav-codex" onclick="showScreen('codex')">
+    <span class="ico">📖</span>Codex
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="showScreen('settings')">
+    <span class="ico">⚙️</span>Settings
+  </button>
+</nav>
+
+<script>
+// ══════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════
+
+const PILLARS = [
+  { id:'anchor',   name:'Anchor',    icon:'🌅', color:'#d97706', soft:'#fffbeb' },
+  { id:'downshift',name:'Downshift', icon:'🌊', color:'#2563eb', soft:'#eff6ff' },
+  { id:'winddown', name:'Wind-Down', icon:'🌙', color:'#7c3aed', soft:'#f5f3ff' },
+  { id:'build',    name:'Build',     icon:'💪', color:'#059669', soft:'#ecfdf5' },
+  { id:'spark',    name:'Spark',     icon:'✨', color:'#ea580c', soft:'#fff7ed' },
+  { id:'spirit',   name:'Spirit',    icon:'🕊️', color:'#0d9488', soft:'#f0fdfa' },
+  { id:'restore',  name:'Restore',   icon:'🌿', color:'#be185d', soft:'#fdf2f8' },
+];
+
+const QUESTS = [
+  // A — ANCHOR
+  { id:'a1', pillar:'anchor',   title:'Consistent wake time',      sub:'Same time daily, ±30 min',                xp:15, core:true,
+    why:"Anchoring your wake time stabilises the body clock more powerfully than controlling bedtime. It times the cortisol-awakening response correctly and locks melatonin release ~16 hours later — the single highest-leverage lever for sleep stability and daytime energy." },
+  { id:'a2', pillar:'anchor',   title:'Morning bright light',      sub:'10 min outdoors within 60 min of waking', xp:15, core:true,
+    why:"Light hitting the retina signals the suprachiasmatic nucleus to halt melatonin and reset the circadian clock. Jakarta's morning sun provides >10,000 lux — far more than indoor lighting. Stacks naturally with the morning run." },
+  { id:'a3', pillar:'anchor',   title:'Morning movement',          sub:'Run or daylight walk',                    xp:10, core:false,
+    why:"Morning exercise amplifies the healthy cortisol-awakening response (the natural peak you want, distinct from chronic elevation) and sets metabolic tone for the day. Your existing 4×/week run already covers this — bonus quests count on run days." },
+  // B — DOWNSHIFT
+  { id:'b1', pillar:'downshift',title:'AM breathing',              sub:'5 min slow breath: 4s in, 6–8s out',     xp:15, core:true,
+    why:"Slow, extended exhales activate the vagus nerve via baroreceptor stretch, shifting the autonomic nervous system toward parasympathetic. This directly targets the 'forgetting to breathe' pattern, air hunger, and heightened heartbeat awareness — some of the most distressing symptoms in the cluster." },
+  { id:'b2', pillar:'downshift',title:'Midday pause',              sub:'10 slow breaths, screen break',           xp:10, core:false,
+    why:"Stress accumulates across the workday in a dose-dependent way. A midday reset valve prevents compounding — especially important when baseline cortisol load is already elevated. Even 2 minutes of slow breathing measurably shifts HRV." },
+  { id:'b3', pillar:'downshift',title:'PM breathing',              sub:'5 min slow breath in the evening',        xp:10, core:false,
+    why:"Prepares the autonomic nervous system for sleep onset. Pairs with the wind-down ritual to create a coherent 'downshift arc' from day to night." },
+  // C — WIND-DOWN
+  { id:'c1', pillar:'winddown', title:'Caffeine cutoff kept',      sub:'No caffeine after your set cutoff',       xp:10, core:false,
+    why:"Caffeine's half-life is ~5–6 hours. A 2pm coffee is still ~25% active at 8pm, blocking adenosine (the sleep-pressure signal) and suppressing melatonin. Your cutoff time is set in Settings." },
+  { id:'c2', pillar:'winddown', title:'Screen dim-down',           sub:'Dim lights/screens 60 min before bed',    xp:10, core:false,
+    why:"Intrinsically photosensitive retinal ganglion cells drive the circadian clock independently of vision. Blue-rich light from screens delays melatonin onset by 30–90 minutes — a meaningful fraction of your sleep window." },
+  { id:'c3', pillar:'winddown', title:'Wind-down ritual',          sub:'Tea, reading, or light stretch — not doomscrolling', xp:15, core:true,
+    why:"A consistent low-stimulation closer creates a conditioned sleep cue through classical association. Deep sleep is when growth hormone peaks, skin repair and collagen synthesis happen, and memory consolidation occurs — protecting this window directly addresses the skin and motivation symptoms." },
+  // D — BUILD
+  { id:'d1', pillar:'build',    title:'Resistance training',       sub:'Strength session (2–3×/week)',            xp:20, core:false,
+    why:"Visceral fat at 9–11 despite a lean frame is a cortisol/insulin pattern, not an energy-balance one. Strength training independently improves insulin sensitivity and targets visceral fat even without dietary restriction — and complements the cardio you're already doing." },
+  { id:'d2', pillar:'build',    title:'Protein-forward breakfast', sub:'Protein-rich first meal',                 xp:10, core:false,
+    why:"Protein at breakfast supports muscle protein synthesis, extends satiety, and produces steadier blood glucose across the morning — which reduces glycaemia-driven cortisol spikes in the early afternoon." },
+  { id:'d3', pillar:'build',    title:'Earlier dinner',            sub:'Finish eating earlier in the evening',    xp:10, core:false,
+    why:"Eating earlier reduces insulin exposure during the first half of the night, when GH pulses for tissue repair peak. Not about restriction — just timing the same food differently. Both visceral-fat and sleep-depth benefits." },
+  // E — SPARK
+  { id:'e1', pillar:'spark',    title:'One enjoyable thing',       sub:'No productivity attached — joy only',    xp:15, core:true,
+    why:"Anhedonia is muted dopaminergic reward signalling — a thermostat stuck low, not a verdict on what you value. The intervention is gentle, repeated re-exposure to genuinely pleasurable things (photography, DMC, cooking, music) to rebuild signal without forcing intensity. This is mechanistically distinct from forced positivity." },
+  { id:'e2', pillar:'spark',    title:'Real connection',           sub:'Meaningful interaction — not transactional', xp:10, core:false,
+    why:"Meaningful social contact activates oxytocin, suppresses cortisol, and stimulates dopamine and serotonin pathways. Physiologically distinct from functional messaging — the quality and mutual presence of the interaction matters, not the channel." },
+  { id:'e3', pillar:'spark',    title:'Outdoors break',            sub:'Step outside during the day',            xp:10, core:false,
+    why:"Daylight exposure (even overcast) provides 1,000–10,000 lux vs. ~200 lux indoors — a secondary circadian anchor. Combined with a screen break, it resets visual fatigue and provides a brief nervous-system pause." },
+  // F — SPIRIT
+  { id:'f1', pillar:'spirit',   title:'Morning anchor',            sub:'Devotional, prayer, or one-line reflection', xp:10, core:false,
+    why:"Faith practice and reflective rituals reliably activate the parasympathetic nervous system and buffer cortisol reactivity. A stable sense of meaning and groundedness is independently stress-protective — one of the few psychological interventions with mechanistic, clinical, and cross-cultural support." },
+  { id:'f2', pillar:'spirit',   title:'Evening brain dump',        sub:'Write 3 worries or open loops out of your head', xp:10, core:false,
+    why:"Unprocessed cognitive load — unresolved worries, open decisions, tomorrow's mental rehearsal — is a primary driver of elevated nocturnal cortisol and sleep-onset delay. Writing thoughts externally (paper or notes app) closes the mental loop, reducing the brain's need to rehearse them during pre-sleep. Controlled trials show measurable cortisol reduction and faster sleep onset after even 5 minutes of expressive writing before bed." },
+  // G — RESTORE (skin barrier)
+  { id:'g1', pillar:'restore',  title:'Skin barrier routine',      sub:'Lukewarm rinse → pat dry → Vaseline on eyelids', xp:15, core:false,
+    why:"The periorbital skin is the thinnest on the body. Soap strips ceramides (the lipid mortar of the skin barrier), and rubbing creates micro-trauma. Cortisol suppresses ceramide synthesis — gentle cleansing plus an occlusive (plain Vaseline is evidence-backed) physically seals the barrier, reducing transepidermal water loss and Malassezia load. Consistent nightly use measurably improves barrier function within 2 weeks." },
+  { id:'g2', pillar:'restore',  title:'7+ hours sleep',            sub:'Did you sleep ≥7h last night?',              xp:15, core:false,
+    why:"Sleep duration is the single strongest modifiable cortisol amplifier. Below 7 hours, the HPA axis fails to downregulate overnight — cortisol the next day is measurably higher, insulin sensitivity drops ~25%, and skin repair (which happens during the deep-sleep GH pulse) is curtailed. This quest is a morning check-in: if you hit it, you earned it; if not, the data tells you where the system is breaking down." },
+  { id:'g3', pillar:'restore',  title:'Omega-3 or anti-inflammatory food', sub:'Oily fish, walnuts, or flaxseed',   xp:10, core:false,
+    why:"Omega-3 fatty acids (EPA/DHA) are incorporated into skin cell membranes, reducing prostaglandin-driven inflammation and supporting the lipid barrier from the inside. They also modestly blunt cortisol reactivity. Dietary omega-3 shows measurable improvement in dry, flaking skin conditions within 6–8 weeks." },
+  { id:'g4', pillar:'restore',  title:'Hydration target',          sub:'~2L water across the day — not all at once',  xp:10, core:false,
+    why:"Jakarta's heat plus air conditioning creates a constant transepidermal water loss gradient. Adequate hydration supports plasma volume and skin turgor. Chronic mild dehydration compounds barrier dysfunction — particularly visible in thin periorbital skin where volume loss is pronounced." },
+];
+
+const CORE_IDS = QUESTS.filter(q => q.core).map(q => q.id);
+
+const LEVEL_NAMES = [
+  'Seed','Sprout','Root','Grounded','Steady',
+  'Calm','Flowing','Clear','Centred','Still',
+  'Rooted','Settled','Open','Restored','Whole'
+];
+
+// ══════════════════════════════════════════
+// STATE & PERSISTENCE
+// ══════════════════════════════════════════
+
+function getTodayStr() {
+  // Jakarta WIB (UTC+7)
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const jakarta = new Date(utc + 7 * 3600000);
+  return jakarta.toISOString().split('T')[0];
+}
+
+function defaultState() {
+  return {
+    totalXp: 0,
+    log: {},
+    streak: 0,
+    longestStreak: 0,
+    shields: 0,
+    lastResetDate: null,
+    createdAt: getTodayStr(),
+    settings: { wakeTarget:'07:00', bedWindow:'22:00', caffeineCutoff:'14:00' }
+  };
+}
+
+let S = defaultState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('reset_v2');
+    if (raw) S = Object.assign(defaultState(), JSON.parse(raw));
+  } catch(e) {}
+}
+
+function saveState() {
+  try { localStorage.setItem('reset_v2', JSON.stringify(S)); } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+// XP / LEVELS
+// ══════════════════════════════════════════
+
+// Cumulative XP to reach level L: 20*(L-1)*(L+2)
+function xpToReach(L) { return L <= 1 ? 0 : 20*(L-1)*(L+2); }
+
+function levelInfo(totalXp) {
+  let L = 1;
+  while (xpToReach(L+1) <= totalXp) L++;
+  const base = xpToReach(L);
+  const next = xpToReach(L+1);
+  return { level:L, into: totalXp - base, needed: next - base };
+}
+
+function levelName(L) {
+  return LEVEL_NAMES[Math.min(L-1, LEVEL_NAMES.length-1)] || `L${L}`;
+}
+
+// ══════════════════════════════════════════
+// STREAK LOGIC
+// ══════════════════════════════════════════
+
+function dayCounts(ds) {
+  const e = S.log[ds];
+  if (!e) return !!e?.shieldUsed;
+  if (e.shieldUsed) return true;
+  const c = e.completedQuestIds || [];
+  return c.length >= 3;
+}
+
+function recomputeStreak() {
+  const today = getTodayStr();
+  let streak = 0;
+  const d = new Date(today + 'T12:00:00Z');
+  // Walk backwards from today
+  for (let i = 0; i < 365; i++) {
+    const ds = d.toISOString().split('T')[0];
+    if (dayCounts(ds)) { streak++; d.setDate(d.getDate()-1); }
+    else if (i === 0) { d.setDate(d.getDate()-1); } // today might not be done yet
+    else break;
+  }
+  S.streak = streak;
+  if (streak > S.longestStreak) S.longestStreak = streak;
+}
+
+// ══════════════════════════════════════════
+// DAILY RESET
+// ══════════════════════════════════════════
+
+function dailyReset() {
+  const today = getTodayStr();
+  if (S.lastResetDate === today) return;
+
+  if (S.lastResetDate) {
+    const prev = S.lastResetDate;
+    if (!dayCounts(prev)) {
+      if (S.shields > 0) {
+        S.shields--;
+        if (!S.log[prev]) S.log[prev] = { completedQuestIds:[], xpEarned:0 };
+        S.log[prev].shieldUsed = true;
+      }
+    } else {
+      // Check weekly shield
+      let allWeek = true;
+      const d = new Date(prev + 'T12:00:00Z');
+      for (let i = 0; i < 7; i++) {
+        const ds = d.toISOString().split('T')[0];
+        if (!dayCounts(ds)) { allWeek = false; break; }
+        d.setDate(d.getDate()-1);
+      }
+      if (allWeek && S.shields < 3) S.shields = Math.min(S.shields+1, 3);
+    }
+  }
+
+  if (!S.log[today]) S.log[today] = { completedQuestIds:[], xpEarned:0 };
+  S.lastResetDate = today;
+  recomputeStreak();
+  saveState();
+}
+
+// ══════════════════════════════════════════
+// QUEST ACTIONS
+// ══════════════════════════════════════════
+
+let pendingLU = null;
+
+function toggleQuest(qid) {
+  const today = getTodayStr();
+  const entry = S.log[today] || (S.log[today] = { completedQuestIds:[], xpEarned:0 });
+  const q = QUESTS.find(x => x.id === qid);
+  const idx = entry.completedQuestIds.indexOf(qid);
+  const oldLevel = levelInfo(S.totalXp).level;
+
+  if (idx === -1) {
+    entry.completedQuestIds.push(qid);
+    entry.xpEarned = (entry.xpEarned||0) + q.xp;
+    S.totalXp += q.xp;
+    showToast(`+${q.xp} XP · ${q.title}`);
+    if (navigator.vibrate) navigator.vibrate(30);
+  } else {
+    entry.completedQuestIds.splice(idx, 1);
+    entry.xpEarned = Math.max(0, (entry.xpEarned||0) - q.xp);
+    S.totalXp = Math.max(0, S.totalXp - q.xp);
+  }
+
+  const newLevel = levelInfo(S.totalXp).level;
+  if (newLevel > oldLevel) pendingLU = { level:newLevel, name:levelName(newLevel) };
+
+  recomputeStreak();
+  saveState();
+  renderToday();
+  if (pendingLU) { setTimeout(() => { showLU(pendingLU); pendingLU=null; }, 500); }
+}
+
+function setRating(v) {
+  const today = getTodayStr();
+  if (!S.log[today]) S.log[today] = { completedQuestIds:[], xpEarned:0 };
+  S.log[today].stressRating = v;
+  saveState();
+  document.querySelectorAll('.rating-btn').forEach(b =>
+    b.classList.toggle('selected', parseInt(b.dataset.v) === v));
+}
+
+function saveNote() {
+  const today = getTodayStr();
+  if (!S.log[today]) S.log[today] = { completedQuestIds:[], xpEarned:0 };
+  S.log[today].note = document.getElementById('note-input').value;
+  saveState();
+}
+
+// ══════════════════════════════════════════
+// RENDER: TODAY
+// ══════════════════════════════════════════
+
+function renderToday() {
+  const today = getTodayStr();
+  const entry = S.log[today] || { completedQuestIds:[], xpEarned:0 };
+  const done = entry.completedQuestIds || [];
+
+  // Date
+  const d = new Date();
+  document.getElementById('today-date').textContent =
+    d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+  // Shields
+  document.getElementById('shields-display').innerHTML =
+    [0,1,2].map(i =>
+      `<span class="shield-ico ${i < S.shields ? '' : 'empty'}" title="Grace day shield">🛡️</span>`
+    ).join('');
+
+  // HUD
+  const li = levelInfo(S.totalXp);
+  const pct = Math.round((li.into / li.needed) * 100);
+  const coresDone = CORE_IDS.filter(id => done.includes(id)).length;
+  const totalDone = done.length;
+
+  let statusLine;
+  if (totalDone === 0) statusLine = 'Your first quest awaits.';
+  else if (coresDone === CORE_IDS.length) statusLine = 'All core quests done. Rest well.';
+  else if (totalDone >= QUESTS.length - 2) statusLine = 'Nearly there — last stretch.';
+  else if (totalDone >= Math.ceil(QUESTS.length / 2)) statusLine = `${totalDone} done — well past halfway.`;
+  else if (coresDone > 0) statusLine = `${coresDone} of ${CORE_IDS.length} core — keep the thread.`;
+  else statusLine = `${totalDone} quest${totalDone !== 1 ? 's' : ''} done — a start.`;
+
+  const streakTxt = S.streak === 0
+    ? '<div class="streak-meta">New run<br>starts today</div>'
+    : `<div><div class="streak-num">${S.streak}</div><div class="streak-meta">day<br>streak</div></div>`;
+
+  document.getElementById('hud').innerHTML = `
+    <div class="hud-row1">
+      <div class="level-badge">
+        <div class="level-circle">${li.level}</div>
+        <div>
+          <div class="level-lbl">Level</div>
+          <div class="level-name">${levelName(li.level)}</div>
+        </div>
+      </div>
+      <div class="streak-pill">${streakTxt}<span style="font-size:20px">🔥</span></div>
+    </div>
+    <div class="xp-track"><div class="xp-fill" style="width:${pct}%"></div></div>
+    <div class="xp-labels">
+      <span>${li.into} XP</span>
+      <span>${li.needed} XP to level ${li.level+1}</span>
+    </div>
+    <div class="status-line">${statusLine}</div>
+  `;
+
+  // Day complete
+  document.getElementById('day-complete-banner').style.display =
+    coresDone === CORE_IDS.length ? 'block' : 'none';
+
+  // Rating
+  const r = entry.stressRating;
+  document.querySelectorAll('.rating-btn').forEach(b =>
+    b.classList.toggle('selected', parseInt(b.dataset.v) === r));
+
+  // Note
+  const ni = document.getElementById('note-input');
+  if (ni && entry.note !== undefined && ni !== document.activeElement)
+    ni.value = entry.note || '';
+
+  // Quests
+  document.getElementById('quests-container').innerHTML =
+    PILLARS.map(p => {
+      const pqs = QUESTS.filter(q => q.pillar === p.id);
+      if (!pqs.length) return '';
+      return `
+        <div class="pillar-group">
+          <div class="pillar-hdr">
+            <div class="pillar-dot" style="background:${p.color}"></div>
+            ${p.icon} ${p.name}
+          </div>
+          ${pqs.map(q => {
+            const isDone = done.includes(q.id);
+            return `
+              <div class="quest-card ${isDone?'done':''}" onclick="toggleQuest('${q.id}')">
+                <div class="quest-chk" style="${isDone?`background:${p.color};border-color:${p.color}`:''}" >
+                  ${isDone?'✓':''}
+                </div>
+                <div class="quest-info">
+                  <div class="quest-title">${q.title}</div>
+                  <div class="quest-sub">${q.sub}</div>
+                </div>
+                <div class="quest-meta">
+                  <div class="quest-xp">+${q.xp}</div>
+                  ${q.core ? '<div class="core-badge">CORE</div>' : ''}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════
+// RENDER: TRENDS
+// ══════════════════════════════════════════
+
+function renderTrends() {
+  const today = getTodayStr();
+  const days28 = [];
+  const base = new Date(today + 'T12:00:00Z');
+  for (let i = 27; i >= 0; i--) {
+    const d2 = new Date(base); d2.setDate(d2.getDate()-i);
+    days28.push(d2.toISOString().split('T')[0]);
+  }
+  const days14 = days28.slice(-14);
+  const days7  = days28.slice(-7);
+
+  // Heatmap
+  const heatmap = days28.map(ds => {
+    const c = (S.log[ds]?.completedQuestIds||[]).length;
+    let cls = 'hm-empty';
+    if (c >= QUESTS.length * 0.75) cls = 'hm-full';
+    else if (c > 0) cls = 'hm-partial';
+    if (ds === today) cls += ' hm-today';
+    const lbl = new Date(ds+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return `<div class="heatmap-cell ${cls}" title="${lbl}: ${c} quests"></div>`;
+  }).join('');
+
+  // Pillar bars
+  const pillarBars = PILLARS.map(p => {
+    const pqs = QUESTS.filter(q => q.pillar===p.id);
+    const possible = days14.length * pqs.length;
+    let total = 0;
+    days14.forEach(ds => {
+      const c = S.log[ds]?.completedQuestIds||[];
+      total += pqs.filter(q => c.includes(q.id)).length;
+    });
+    const pct = possible > 0 ? Math.round((total/possible)*100) : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-lbl">${p.icon} ${p.name}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${p.color}"></div></div>
+        <div class="bar-pct" style="color:${p.color}">${pct}%</div>
+      </div>`;
+  }).join('');
+
+  // Stats
+  const streak7 = days7.filter(ds => dayCounts(ds)).length;
+  const totalDays = Object.keys(S.log).length;
+
+  // Ratings
+  const ratedDays = days14.filter(ds => S.log[ds]?.stressRating);
+  const ratingChips = ratedDays.map(ds => {
+    const rv = S.log[ds].stressRating;
+    const em = ['','😴','😕','😐','🙂','✨'][rv];
+    const lbl = new Date(ds+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return `<span class="rating-chip"><span style="font-size:22px">${em}</span>${lbl}</span>`;
+  }).join('');
+
+  // Low rating alert
+  let careNote = '';
+  if (ratedDays.length >= 5) {
+    const avg = ratedDays.reduce((s,ds) => s + S.log[ds].stressRating, 0) / ratedDays.length;
+    if (avg < 2.5) {
+      careNote = `<div class="care-note">
+        Your readiness ratings have been low lately — that's real information worth noticing.
+        If things feel consistently heavy, it might be a good moment to check in with a professional.
+        That's not a failure; it's the right next step.
+      </div>`;
+    }
+  }
+
+  document.getElementById('trends-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">28-day activity</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:5px">
+        ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:10px;color:var(--text-muted)">${x}</div>`).join('')}
+      </div>
+      <div class="heatmap-grid">${heatmap}</div>
+      <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--text-muted)">
+        <span>● Full (≥75%)</span>
+        <span style="color:var(--accent-mid)">● Partial</span>
+        <span>○ Rest</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Key stats</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num">${S.streak}</div><div class="stat-lbl">current streak</div></div>
+        <div class="stat-box"><div class="stat-num">${S.longestStreak}</div><div class="stat-lbl">longest streak</div></div>
+        <div class="stat-box"><div class="stat-num">${streak7}/7</div><div class="stat-lbl">days this week</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pillar consistency (14 days)</div>
+      ${pillarBars}
+    </div>
+
+    ${ratedDays.length ? `
+    <div class="card">
+      <div class="card-title">Morning readiness</div>
+      <div>${ratingChips}</div>
+      ${careNote}
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-title">Export for GP visit</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+        Your log includes daily quest completion, stress ratings, and notes —
+        useful context to bring to your appointment.
+      </div>
+      <button class="btn btn-outline" onclick="exportCSV()">📊 Export as CSV</button>
+      <button class="btn btn-outline" onclick="exportJSON()">📥 Export full data (JSON)</button>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+// RENDER: CODEX
+// ══════════════════════════════════════════
+
+function renderCodex() {
+  document.getElementById('codex-content').innerHTML =
+    PILLARS.map(p => {
+      const pqs = QUESTS.filter(q => q.pillar===p.id);
+      return `
+        <div class="codex-pillar">
+          <div class="codex-p-hdr" style="background:${p.soft}">
+            <span style="font-size:22px">${p.icon}</span>
+            <span class="codex-p-name" style="color:${p.color}">${p.name}</span>
+          </div>
+          ${pqs.map(q => `
+            <div class="codex-q">
+              <div class="codex-q-title">
+                ${q.title}
+                ${q.core ? '<span class="core-badge">CORE</span>' : ''}
+              </div>
+              <div class="codex-q-why">${q.why}</div>
+            </div>`).join('')}
+        </div>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════
+// RENDER: SETTINGS
+// ══════════════════════════════════════════
+
+function renderSettings() {
+  const li = levelInfo(S.totalXp);
+  document.getElementById('settings-content').innerHTML = `
+    <div class="settings-section">
+      <div class="settings-lbl">Times</div>
+      <div class="settings-row">
+        <span class="settings-row-label">Wake target</span>
+        <input class="settings-input" type="time" value="${S.settings.wakeTarget}"
+          onchange="setSetting('wakeTarget',this.value)">
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Bed window start</span>
+        <input class="settings-input" type="time" value="${S.settings.bedWindow}"
+          onchange="setSetting('bedWindow',this.value)">
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Caffeine cutoff</span>
+        <input class="settings-input" type="time" value="${S.settings.caffeineCutoff}"
+          onchange="setSetting('caffeineCutoff',this.value)">
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-lbl">Progress</div>
+      <div class="settings-row">
+        <span class="settings-row-label">Level</span>
+        <span class="settings-row-value">${li.level} — ${levelName(li.level)}</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Total XP</span>
+        <span class="settings-row-value">${S.totalXp.toLocaleString()}</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Longest streak</span>
+        <span class="settings-row-value">${S.longestStreak} days</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Grace shields</span>
+        <span class="settings-row-value">${S.shields} / 3</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Days logged</span>
+        <span class="settings-row-value">${Object.keys(S.log).length}</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-lbl">Data</div>
+      <button class="btn btn-outline" onclick="exportCSV()">📊 Export as CSV</button>
+      <button class="btn btn-outline" onclick="exportJSON()">📥 Export full JSON</button>
+      <button class="btn btn-danger" onclick="doReset()">⚠️ Reset all data</button>
+    </div>
+
+    <div class="gp-note">
+      💙 This system is a support, not a substitute for medical care.
+      Book the GP — basic labs (thyroid TSH/T3/T4, fasting glucose + insulin, ECG)
+      are the next concrete step. Your data here is genuinely useful to bring along.
+    </div>
+  `;
+}
+
+function setSetting(k, v) { S.settings[k] = v; saveState(); }
+
+// ══════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+  dl(blob, `reset-data-${getTodayStr()}.json`);
+}
+
+function exportCSV() {
+  const rows = [['Date','Quests Completed','XP Earned','Core Complete','Stress Rating','Note']];
+  Object.entries(S.log).sort().forEach(([date, e]) => {
+    const c = e.completedQuestIds||[];
+    const coresDone = CORE_IDS.filter(id => c.includes(id)).length;
+    rows.push([date, c.length, e.xpEarned||0,
+      coresDone===CORE_IDS.length?'Yes':'No',
+      e.stressRating||'', (e.note||'').replace(/,/g,';').replace(/\n/g,' ')]);
+  });
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+  dl(blob, `reset-data-${getTodayStr()}.csv`);
+}
+
+function dl(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function doReset() {
+  if (confirm('Erase all data and start fresh?')) {
+    localStorage.removeItem('reset_v2');
+    S = defaultState();
+    dailyReset();
+    showScreen('today');
+    renderToday();
+    showToast('Fresh start. New run begins today.');
+  }
+}
+
+// ══════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════
+
+let toastT;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showLU({ level, name }) {
+  document.getElementById('luTitle').textContent = `Level ${level}: ${name}`;
+  document.getElementById('luSub').textContent =
+    'You reached a new level. The nervous system adapts.';
+  document.getElementById('luOverlay').classList.add('show');
+}
+
+function dismissLU() {
+  document.getElementById('luOverlay').classList.remove('show');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  if (name==='trends') renderTrends();
+  if (name==='codex') renderCodex();
+  if (name==='settings') renderSettings();
+}
+
+// ══════════════════════════════════════════
+// SWIPE NAVIGATION
+// ══════════════════════════════════════════
+
+const SCREENS = ['today','trends','codex','settings'];
+let touchStartX = 0;
+
+document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].screenX - touchStartX;
+  if (Math.abs(dx) < 50) return;
+  const active = document.querySelector('.screen.active');
+  if (!active) return;
+  const cur = SCREENS.indexOf(active.id.replace('screen-', ''));
+  if (dx < 0 && cur < SCREENS.length - 1) showScreen(SCREENS[cur + 1]);
+  if (dx > 0 && cur > 0) showScreen(SCREENS[cur - 1]);
+}, { passive: true });
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+
+loadState();
+dailyReset();
+renderToday();
+</script>
+</body>
+</html>
