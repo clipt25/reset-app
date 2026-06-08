@@ -306,21 +306,21 @@ body {
 <!-- AUTH WALL -->
 <div class="auth-wall" id="auth-wall">
   <div class="auth-logo">RESET</div>
-  <div class="auth-sub" id="auth-sub">Your private recovery journal</div>
+  <div class="auth-sub" id="auth-sub">Create your private login</div>
   <div class="auth-box">
     <div class="auth-field">
       <label class="auth-label" for="auth-user">Username</label>
       <input class="auth-input" id="auth-user" type="text" autocomplete="username"
-        placeholder="Enter username" spellcheck="false">
+        placeholder="Choose a username" spellcheck="false">
     </div>
     <div class="auth-field">
       <label class="auth-label" for="auth-pass">Password</label>
       <input class="auth-input" id="auth-pass" type="password" autocomplete="current-password"
-        placeholder="Enter password">
+        placeholder="Choose a password">
     </div>
     <div class="auth-error" id="auth-error"></div>
-    <button class="btn btn-primary" id="auth-btn" onclick="authSubmit()">Sign in</button>
-    <div class="auth-session" id="auth-session-info"></div>
+    <button class="btn btn-primary" id="auth-btn" onclick="authSubmit()">Create login</button>
+    <div class="auth-session" id="auth-session-info">Your credentials stay on this device only. Session lasts 30 days.</div>
   </div>
 </div>
 
@@ -485,19 +485,19 @@ function logout() {
 }
 
 async function initAuth() {
-  // Valid session → skip login
+  // Valid session → skip login wall entirely
   const sess = getSession();
   if (sess) { unlockApp(sess.expires); return; }
 
-  // First run → show setup mode
-  const wall = document.getElementById('auth-wall');
-  if (isFirstRun()) {
-    document.getElementById('auth-sub').textContent = 'Create your private login';
-    document.getElementById('auth-btn').textContent = 'Create login';
-    document.getElementById('auth-session-info').textContent =
-      'Your credentials are stored only on this device. Session lasts 30 days.';
+  // Credentials already exist → switch to sign-in mode
+  if (!isFirstRun()) {
+    document.getElementById('auth-sub').textContent = 'Your private recovery journal';
+    document.getElementById('auth-user').placeholder = 'Enter username';
+    document.getElementById('auth-pass').placeholder = 'Enter password';
+    document.getElementById('auth-btn').textContent = 'Sign in';
+    document.getElementById('auth-session-info').textContent = '';
   }
-  // Wall is visible by default — nothing else to do
+  // First-run state is the default — HTML already shows "Create login"
 }
 
 // Enter key submits
