@@ -341,6 +341,7 @@ body {
     <div>
       <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px">RESET</div>
       <div style="font-size:12px;color:var(--text-muted)" id="today-date"></div>
+      <div style="font-size:10px;color:var(--accent);min-height:13px;margin-top:1px" id="sync-status"></div>
     </div>
     <div class="shields-row" id="shields-display"></div>
   </div>
@@ -586,7 +587,6 @@ const LEVEL_NAMES = [
 // ══════════════════════════════════════════
 
 function getTodayStr() {
-  // Jakarta WIB (UTC+7)
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const jakarta = new Date(utc + 7 * 3600000);
@@ -602,7 +602,8 @@ function defaultState() {
     shields: 0,
     lastResetDate: null,
     createdAt: getTodayStr(),
-    settings: { wakeTarget:'07:00', bedWindow:'22:00', caffeineCutoff:'14:00' }
+    settings: { wakeTarget:'07:00', bedWindow:'22:00', caffeineCutoff:'14:00' },
+    _syncedAt: 0
   };
 }
 
@@ -616,8 +617,82 @@ function loadState() {
 }
 
 function saveState() {
+  S._syncedAt = Date.now();
   try { localStorage.setItem('reset_v2', JSON.stringify(S)); } catch(e) {}
+  scheduleGistPush();
 }
+
+// ══════════════════════════════════════════
+// GIST SYNC
+// ══════════════════════════════════════════
+
+const GIST_ID  = '5090079ca7c27176d2fb934391e90e0e';
+const GIST_FILE = 'reset-state.json';
+let gistPushTimer = null;
+let isSyncing = false;
+
+function getGistPAT() {
+  return localStorage.getItem('reset_gist_pat') || '';
+}
+
+function scheduleGistPush() {
+  if (!getGistPAT()) return;
+  clearTimeout(gistPushTimer);
+  gistPushTimer = setTimeout(pushToGist, 2000);
+}
+
+async function pushToGist() {
+  const pat = getGistPAT();
+  if (!pat || isSyncing) return;
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(S) } } })
+    });
+    showSyncStatus('✓ Synced');
+  } catch(e) { showSyncStatus('⚠ Sync failed'); }
+}
+
+async function pullFromGist(silent) {
+  const pat = getGistPAT();
+  if (!pat) return;
+  isSyncing = true;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Authorization': `token ${pat}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const raw = data.files?.[GIST_FILE]?.content;
+    if (!raw) return;
+    const remote = JSON.parse(raw);
+    // Take whichever state is newer
+    if ((remote._syncedAt || 0) > (S._syncedAt || 0)) {
+      S = Object.assign(defaultState(), remote);
+      localStorage.setItem('reset_v2', JSON.stringify(S));
+      renderToday();
+      if (!silent) showSyncStatus('↓ Updated from cloud');
+    } else {
+      if (!silent) showSyncStatus('✓ Up to date');
+    }
+  } catch(e) {}
+  finally { isSyncing = false; }
+}
+
+function showSyncStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// Pull on tab focus
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') pullFromGist(true);
+});
+window.addEventListener('focus', () => pullFromGist(true));
 
 // ══════════════════════════════════════════
 // XP / LEVELS
@@ -1047,6 +1122,18 @@ function renderSettings() {
     </div>
 
     <div class="settings-section">
+      <div class="settings-lbl">Cloud Sync</div>
+      <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="settings-row-label" style="font-size:13px">GitHub PAT <span style="font-weight:400;color:var(--text-muted)">(gist scope)</span></span>
+        <input id="pat-input" type="password"
+          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:var(--bg);outline:none"
+          placeholder="ghp_xxxx — paste your token"
+          oninput="savePAT(this.value)">
+      </div>
+      <button class="btn btn-outline" onclick="pullFromGist(false)" style="margin-top:4px">☁️ Pull from cloud now</button>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-lbl">Data</div>
       <button class="btn btn-outline" onclick="exportCSV()">📊 Export as CSV</button>
       <button class="btn btn-outline" onclick="exportJSON()">📥 Export full JSON</button>
@@ -1063,6 +1150,11 @@ function renderSettings() {
 }
 
 function setSetting(k, v) { S.settings[k] = v; saveState(); }
+
+function savePAT(v) {
+  if (v) localStorage.setItem('reset_gist_pat', v.trim());
+  else localStorage.removeItem('reset_gist_pat');
+}
 
 // ══════════════════════════════════════════
 // EXPORT
@@ -1134,7 +1226,7 @@ function showScreen(name) {
   document.getElementById(`nav-${name}`).classList.add('active');
   if (name==='trends') renderTrends();
   if (name==='codex') renderCodex();
-  if (name==='settings') renderSettings();
+  if (name==='settings') { renderSettings(); const p=document.getElementById('pat-input'); if(p) p.value=getGistPAT(); }
 }
 
 // ══════════════════════════════════════════
@@ -1163,6 +1255,7 @@ initAuth();
 loadState();
 dailyReset();
 renderToday();
+pullFromGist(true);
 </script>
 </body>
 </html>
