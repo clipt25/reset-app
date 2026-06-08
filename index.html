@@ -39,8 +39,8 @@ body {
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
-  /* nav height (58px) + safe area + extra breathing room */
-  padding-bottom: calc(58px + env(safe-area-inset-bottom, 16px) + 16px);
+  /* nav height + safe area + generous breathing room */
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 34px) + 24px);
 }
 
 /* ── NAV ── */
@@ -50,7 +50,7 @@ body {
   background: var(--surface); border-top: 1px solid var(--border);
   display: flex; z-index: 100;
   /* Pad buttons above home indicator */
-  padding-bottom: env(safe-area-inset-bottom, 8px);
+  padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
 }
 .nav-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
